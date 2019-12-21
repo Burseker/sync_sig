@@ -1,0 +1,13 @@
+### ignore all files without extension ###
+*
+!/**/
+!*.*
+
+### exclute ignoring file without extension ###
+!notepad_session_svb
+
+### ignore this folders ###
+/rtl_work/
+/work/
+#sync_sig.mpf
+sync_sig.cr.mti
