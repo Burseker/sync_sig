@@ -31,6 +31,8 @@ vcom -93 -work work {./src/_atoms/mul_cplx_v2.vhd}
 vcom -93 -work work {./src/_atoms/shift_rounder_47_to_16.vhd}
 vcom -93 -work work {./src/_atoms/zero_one_check.vhd}
 
+vcom -93 -work work {./src/sync_handler/sync_handler.vhd}
+
 vcom -93 -work work {./src/sync_sig_top.vhd}
 vcom -93 -work work {./src/sync_sig_tb.vhd}
 

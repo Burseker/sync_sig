@@ -18,6 +18,11 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+--=========================
+LIBRARY altera_mf;
+USE altera_mf.altera_mf_components.all;
+--=========================
+
 entity sync_sig_top is
     generic (
         SIM     : integer := 0
@@ -34,7 +39,15 @@ end sync_sig_top;
 
 architecture beh of sync_sig_top is
 
-
+    signal s_ddrsync_h      : std_logic := '0';
+    signal s_ddrsync_l      : std_logic := '0';
+    
+    signal osync            : std_logic := '0';
+    signal s_flag_freq_sh   : std_logic := '0';
+    
+--=============================================
+-- OTHERS
+--=============================================
     -- service signals
     signal s_rtime          : unsigned(31 downto 0) := (others => '0');
     signal s_rtime_aux      : unsigned(31 downto 0) := (others => '0');
@@ -43,30 +56,6 @@ architecture beh of sync_sig_top is
     signal s_adcimit_or     : std_logic := '0';
     signal s_latch_rst      : std_logic := '0';
     signal s_new_dist       : std_logic := '0';
-    
-    
-    -- -- chanel signals
-    -- type T_ADC_RAW is record
-        -- p_dat     : std_logic_vector(31 downto 0);
-        -- p_end     : std_logic;
-        -- p_stb     : std_logic;
-        -- p_ten     : std_logic;
-        
-        -- w512_addr : std_logic_vector(23 downto 0);
-        -- w512_size : std_logic_vector(23 downto 0);
-        -- w512_stb  : std_logic;
-        -- w512_rdy  : std_logic;
-    -- end record;
-    -- type T_ADC_RAW_ARR4 is array (0 to 7) of T_ADC_RAW;
-    
-    -- signal s_adc_prc : T_ADC_RAW_ARR4 := (others => ((others => '0'), '0', '0', '0',
-                                                    -- (others => '0'), (others => '0'), '0', '0'
-                                                   -- )
-                                        -- );
-    
-    -- signal s_adchdr_prc : T_ADC_RAW := ((others => '0'), '0', '0', '0',
-                                        -- (others => '0'), (others => '0'), '0', '0'
-                                        -- );
     
     
 begin
@@ -80,6 +69,56 @@ begin
         -- elsif(rising_edge(clk))then
         -- end if;
     -- end process;
+    
+    
+    
+--==========================================================================
+-- Входной DDR-триггер
+--==========================================================================
+    sync_ddr: altddio_in
+    GENERIC MAP (
+		intended_device_family => "Stratix II",
+		--invert_input_clocks => "ON",
+		invert_input_clocks => "OFF",
+		lpm_type => "altddio_in",
+		width => 1
+	)
+	PORT MAP (
+		aclr        => aclr,
+		inclock     => clka,
+		datain(0)   => sync,
+		dataout_h(0)=> s_ddrsync_h,
+		dataout_l(0)=> s_ddrsync_l
+	);
+    
+ 
+--==========================================================================
+-- ЗАХВАТ SYNC
+--========================================================================== 
+    sync_handler: entity work.sync_handler
+    port map(
+        aclr         => aclr,
+        -- очищенный от джиттера тактовый сигнал 105Мгц
+        clk          => clk,
+        clk2x        => clka,
+        -- строб начала запуска, несинхронизированный, защелкивается в DDR регистре
+        isync_h      => s_ddrsync_h,
+        isync_l      => s_ddrsync_l,
+        
+        -- строб начала запуска, синхронизированный с clk
+        osync        => osync,
+        
+        -- флаги состояния
+        -- флаг ухода частоты
+        flag_freq_sh => s_flag_freq_sh
+    );
+    
+    
+--=============================================
+-- OUTPUT ASSIGMENTS
+--=============================================
+    
+    
     
 --=============================================
 -- TYPICAL PROCESS
@@ -97,15 +136,10 @@ begin
             end if;
         end if;
     end process;
-    --s_adcimit_dat <= std_logic_vector(s_rtime(15 downto 0));
-    --s_adcimit_dat <= x"0100" when s_rtime(15 downto 0) = x"04C3" else x"0000";
     
     s_latch_rst   <= '1' when s_rtime_aux(15 downto 0) = x"34C3" else '0';
     s_new_dist    <= '1' when s_rtime(15 downto 0) = x"0E80" else '0';
     
     
---=============================================
--- OUTPUT ASSIGMENTS
---=============================================
     
 end beh;

@@ -50,23 +50,25 @@ end sync_sig_tb;
 architecture beh of sync_sig_tb is
     
     constant C_CLK_PERIOD       : time := 10 ns;
-    constant C_CLKA_PERIOD      : time := 15 ns;
+    constant C_CLKA_PERIOD      : time := 5 ns;
     constant C_CLKB_PERIOD      : time := 20 ns;
-    constant C_CLKC_PERIOD      : time := 25 ns;
+    constant C_CLKC_PERIOD      : time := 21 ns;
     -- constant C_CRC2_PERIOD  : time := 20 ns;
     -- constant C_CRC4_PERIOD  : time := 40 ns;
     
     -- служебные сигналы
     signal  aclr        : std_logic := '1';
-    signal  clk         : std_logic := '0';
-    signal  clka        : std_logic := '0';
-    signal  clkb        : std_logic := '0';
-    signal  clkc        : std_logic := '0';
+    signal  clk         : std_logic := '1';
+    signal  clka        : std_logic := '1';
+    signal  clkb        : std_logic := '1';
+    signal  clkc        : std_logic := '1';
     
     signal  ureal_time      : unsigned( 31 downto 0 ) := ( others => '0' );
     signal  real_time       : std_logic_vector( 31 downto 0 ) := ( others => '0' );
 
     -- восстанавливаемый сигнал
+    signal  s_sync0_stb     : std_logic := '0';
+    signal  s_sync0_cnt     : unsigned( 3 downto 0 ) := ( others => '0' );
     signal  sync        : std_logic := '0';
     
 --============================================
@@ -99,7 +101,25 @@ begin
     ureal_time <= ureal_time + 1 after C_CLK_PERIOD;
     real_time <= std_logic_vector(ureal_time);
     
+    process(aclr, clkc)
+    begin
+        if(aclr = '1')then
+            s_sync0_stb <= '0';
+            s_sync0_cnt <= x"0";
+        elsif(rising_edge(clkc))then
+        
+            if( s_sync0_cnt = x"F" ) then s_sync0_cnt <= x"0";
+            else s_sync0_cnt <= s_sync0_cnt + 1; end if;
+            
+            if( s_sync0_cnt = x"F" )then
+                s_sync0_stb <= '1';
+            else
+                s_sync0_stb <= '0';
+            end if;
+        end if;
+    end process;
     
+    sync <= s_sync0_stb;
     
     --XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     --=============================================
