@@ -26,7 +26,8 @@ add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_fscale
 add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_ttrig_s
 add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_ttrig_s_r
 add wave -noupdate -divider -height 60 <NULL>
-add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_dl_st0
+add wave -noupdate -expand /sync_sig_tb/sync_sig_uut/sync_handler/s_dl_fs0
+add wave -noupdate -expand /sync_sig_tb/sync_sig_uut/sync_handler/s_dl_st0
 add wave -noupdate -divider -height 60 <NULL>
 add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_stat
 add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_stat_r
@@ -36,7 +37,7 @@ add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_det_cnt
 add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_det_stb
 add wave -noupdate -divider -height 60 <NULL>
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {2178671 ps} 0}
+WaveRestoreCursors {{Cursor 1} {425000 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 189
 configure wave -valuecolwidth 168
@@ -52,4 +53,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {2094988 ps} {3047633 ps}
+WaveRestoreZoom {336644 ps} {533790 ps}

@@ -18,6 +18,11 @@
 --
 -- Additional Comments:         
 -- 
+-- Возможные состояния захвата, регистр s_sync_stat
+-- 0b00 - ха
+-- 0b01 - захват по r и f 2x в положительной 1x
+-- 0b10
+-- 0b11
 -- 
 ----------------------------------------------------------------------------------
 -- 
@@ -160,7 +165,7 @@ begin
             
         elsif(rising_edge(clk2x))then
             if( s_dl_st0(1 downto 0) = b"11" and s_dl_st0(4 downto 3) = b"00" )then
-                s_sync_stat   <= s_dl_fs0(1) & s_dl_st0(2);
+                s_sync_stat   <= s_dl_st0(2) & s_dl_fs0(1);
                 s_sync_stat_r <= s_sync_stat;
                 s_sync_stat_rr <= s_sync_stat_r;
             end if;
