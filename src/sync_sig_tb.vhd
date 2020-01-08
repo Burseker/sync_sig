@@ -52,7 +52,7 @@ architecture beh of sync_sig_tb is
     constant C_CLK_PERIOD       : time := 10 ns;
     constant C_CLKA_PERIOD      : time := 5 ns;
     constant C_CLKB_PERIOD      : time := 20 ns;
-    constant C_CLKC_PERIOD      : time := 21 ns;
+    constant C_CLKC_PERIOD      : time := 20010 ps;
     -- constant C_CRC2_PERIOD  : time := 20 ns;
     -- constant C_CRC4_PERIOD  : time := 40 ns;
     

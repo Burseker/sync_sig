@@ -26,19 +26,42 @@ add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_fscale
 add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_ttrig_s
 add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_ttrig_s_r
 add wave -noupdate -divider -height 60 <NULL>
-add wave -noupdate -expand /sync_sig_tb/sync_sig_uut/sync_handler/s_dl_fs0
-add wave -noupdate -expand /sync_sig_tb/sync_sig_uut/sync_handler/s_dl_st0
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_dl_fs0
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_dl_st0
 add wave -noupdate -divider -height 60 <NULL>
+add wave -noupdate -divider -height 60 <NULL>
+add wave -noupdate -divider -height 60 <NULL>
+add wave -noupdate -divider -height 60 <NULL>
+add wave -noupdate -divider -height 60 <NULL>
+add wave -noupdate /sync_sig_tb/clk
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/clk2x
+add wave -noupdate /sync_sig_tb/sync
+add wave -noupdate -divider -height 60 <NULL>
+add wave -noupdate -expand /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_det_phase
 add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_stat
-add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_stat_r
-add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_stat_rr
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_stat_arr
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_stat_lock
 add wave -noupdate -divider <NULL>
 add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_det_cnt
 add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_det_stb
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_osync
+add wave -noupdate -divider -height 60 <NULL>
+add wave -noupdate -expand /sync_sig_tb/sync_sig_uut/sync_handler/s_stat_arr
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_stat_lock
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_flag_lock
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_stA_pres
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_stB_pres
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_stC_pres
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_stD_pres
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_det_cnt
+add wave -noupdate /sync_sig_tb/sync_sig_uut/sync_handler/s_sync_det_stb
+add wave -noupdate -divider -height 60 <NULL>
+add wave -noupdate -divider -height 60 <NULL>
+add wave -noupdate -divider -height 60 <NULL>
 add wave -noupdate -divider -height 60 <NULL>
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {425000 ps} 0}
-quietly wave cursor active 1
+WaveRestoreCursors {{Cursor 1} {730000 ps} 0} {{Cursor 2} {780000 ps} 0}
+quietly wave cursor active 2
 configure wave -namecolwidth 189
 configure wave -valuecolwidth 168
 configure wave -justifyvalue left
@@ -53,4 +76,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {336644 ps} {533790 ps}
+WaveRestoreZoom {652174 ps} {874186 ps}

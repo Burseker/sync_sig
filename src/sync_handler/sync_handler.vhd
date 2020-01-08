@@ -19,10 +19,19 @@
 -- Additional Comments:         
 -- 
 -- Возможные состояния захвата, регистр s_sync_stat
--- 0b00 - ха
--- 0b01 - захват по r и f 2x в положительной 1x
--- 0b10
--- 0b11
+-- 0b00 - захват по f и r clk2x в положительный полупериод clk1x
+-- 0b01 - захват по f и r clk2x в отрицательной полупериод clk1x
+-- 0b10 - захват по r clk2x в отрицательной полупериод clk1x
+-- 0b11 - захват по r clk2x в положительный полупериод clk1x
+-- 
+-- стоит уточнить что индекс состояния условный, можно было выбрать 
+-- другие последовательности. Такой выбор индекса обусловлен удобством 
+-- соотношения двух соседних индексов
+--      Если у статуса изменился старший разряд, при сохранении младшего, это обозначает
+--   уход строба синхронизации на четверть периода clk1x
+--      Так анализируется более продолжительный уход, это подсчет статусов смежных семи
+--   периодов, а так же простейшая статистика.
+--
 -- 
 ----------------------------------------------------------------------------------
 -- 
@@ -88,13 +97,22 @@ architecture beh of sync_handler is
     signal  s_ttrig_s_r     : std_logic := '0';
 
     signal  s_dl_st0        : std_logic_vector(7 downto 0) := ( others => '0' );
-    signal  s_dl_fs0        : std_logic_vector(3 downto 0) := ( others => '0' );
+    signal  s_dl_fs0        : std_logic_vector(0 downto 0) := ( others => '0' );
     
     signal  s_sync_stat     : std_logic_vector(1 downto 0) := ( others => '0' );
-    signal  s_sync_stat_r   : std_logic_vector(1 downto 0) := ( others => '0' );
-    signal  s_sync_stat_rr  : std_logic_vector(1 downto 0) := ( others => '0' );
     
-    signal  s_sync_det_cnt  : std_logic_vector(3 downto 0) := ( others => '0' );
+    type T_STAT_ARR7 is array (0 to 6) of std_logic_vector(3 downto 0);
+    signal  s_stat_arr : T_STAT_ARR7 := ( others => ( others => '0' ) );
+    signal  s_stat_lock: std_logic_vector(3 downto 0) := ( others => '0' );
+    signal  s_flag_lock: std_logic := '0';
+    
+    signal  s_stA_pres      : std_logic := '0';
+    signal  s_stB_pres      : std_logic := '0';
+    signal  s_stC_pres      : std_logic := '0';
+    signal  s_stD_pres      : std_logic := '0';
+    
+    signal  s_sync_det_phase: std_logic_vector(2 downto 0) := ( others => '0' );
+    signal  s_sync_det_cnt  : std_logic_vector(7 downto 0) := ( others => '0' );
     signal  s_sync_det_stb  : std_logic := '0';
     
 begin
@@ -143,7 +161,7 @@ begin
             s_dl_st0 <= ( others => '0' );
             
         elsif(rising_edge(clk2x))then
-            s_dl_fs0 <= s_dl_fs0(2 downto 0) & s_fscale;
+            s_dl_fs0(0) <= s_fscale;
             s_dl_st0 <= s_dl_st0(5 downto 0) & isync_l & isync_h;
             
         end if;
@@ -157,31 +175,174 @@ begin
     begin
         if(aclr = '1')then
             s_sync_stat    <= ( others => '0' );
-            s_sync_stat_r  <= ( others => '0' );
-            s_sync_stat_rr <= ( others => '0' );
+            s_stat_arr     <= ( others => ( others => '0' ) );
             
-            s_sync_det_cnt <= ( others => '0' );
-            s_sync_det_stb <= '0';
+            s_sync_det_phase <= ( others => '0' );
             
         elsif(rising_edge(clk2x))then
             if( s_dl_st0(1 downto 0) = b"11" and s_dl_st0(4 downto 3) = b"00" )then
-                s_sync_stat   <= s_dl_st0(2) & s_dl_fs0(1);
-                s_sync_stat_r <= s_sync_stat;
-                s_sync_stat_rr <= s_sync_stat_r;
+                s_sync_stat   <= s_dl_fs0(0) & s_dl_st0(2);
+                
+                case std_logic_vector'(s_dl_fs0(0) & s_dl_st0(2)) is      
+                    when b"00" => s_stat_arr(0) <= b"0001";
+                    when b"01" => s_stat_arr(0) <= b"0010";
+                    when b"10" => s_stat_arr(0) <= b"0100";
+                    when b"11" => s_stat_arr(0) <= b"1000";
+                    when others => s_stat_arr(0) <= b"1111";
+                end case;
+                
+                s_stat_arr(1) <= s_stat_arr(0);
+                s_stat_arr(2) <= s_stat_arr(1);
+                s_stat_arr(3) <= s_stat_arr(2);
+                s_stat_arr(4) <= s_stat_arr(3);
+                s_stat_arr(5) <= s_stat_arr(4);
+                s_stat_arr(6) <= s_stat_arr(5);
+                
             end if;
             
             if( s_dl_st0(1 downto 0) = b"11" and s_dl_st0(4 downto 3) = b"00" )then
-                s_sync_det_cnt <= ( others => '1' );
+                s_sync_det_phase <= b"001";
             else
-                s_sync_det_cnt <= s_sync_det_cnt(2 downto 0) & '0';
+                s_sync_det_phase <= s_sync_det_phase(1 downto 0) & '0';
             end if;
             
-            s_sync_det_stb <= s_sync_det_cnt(3);
             
         end if;
     end process;
 
 
+--=============================================
+-- LOCK HANDLER
+--=============================================
+    s_stA_pres <= s_stat_arr(0)(0) or s_stat_arr(1)(0) or s_stat_arr(2)(0) or s_stat_arr(3)(0) or s_stat_arr(4)(0) or s_stat_arr(5)(0) or s_stat_arr(6)(0);
+    s_stB_pres <= s_stat_arr(0)(1) or s_stat_arr(1)(1) or s_stat_arr(2)(1) or s_stat_arr(3)(1) or s_stat_arr(4)(1) or s_stat_arr(5)(1) or s_stat_arr(6)(1);
+    s_stC_pres <= s_stat_arr(0)(2) or s_stat_arr(1)(2) or s_stat_arr(2)(2) or s_stat_arr(3)(2) or s_stat_arr(4)(2) or s_stat_arr(5)(2) or s_stat_arr(6)(2);
+    s_stD_pres <= s_stat_arr(0)(3) or s_stat_arr(1)(3) or s_stat_arr(2)(3) or s_stat_arr(3)(3) or s_stat_arr(4)(3) or s_stat_arr(5)(3) or s_stat_arr(6)(3);
+    
+    
+    process(aclr, clk2x)
+    begin
+        if(aclr = '1')then
+            s_stat_lock <= ( others => '0' );
+            s_flag_lock <= '0';
+            
+            s_sync_det_cnt <= ( others => '0' );
+            s_sync_det_stb <= '0';
+        elsif(rising_edge(clk2x))then
+        
+            if( s_sync_det_phase(0) = '1' )then
+                if( s_flag_lock = '0' )then
+                    s_stat_lock <= s_stat_arr(0);
+                end if;
+            end if;
+                
+            if( s_sync_det_phase(1) = '1' )then
+            
+                case s_stat_lock is
+                    when b"0001" => 
+                        if( ( s_stD_pres and s_stB_pres ) = '0' and s_stC_pres = '0' ) then 
+                            s_flag_lock <= '1';
+                        else
+                            s_flag_lock <= '0';
+                        end if;
+                        
+                    when b"0010" => 
+                        if( ( s_stA_pres and s_stC_pres ) = '0' and s_stD_pres = '0' ) then 
+                            s_flag_lock <= '1';
+                        else
+                            s_flag_lock <= '0';
+                        end if;
+                        
+                    when b"0100" => 
+                        if( ( s_stB_pres and s_stD_pres ) = '0' and s_stA_pres = '0' ) then 
+                            s_flag_lock <= '1';
+                        else
+                            s_flag_lock <= '0';
+                        end if;
+                        
+                    when b"1000" => 
+                        if( ( s_stC_pres and s_stA_pres ) = '0' and s_stB_pres = '0' ) then 
+                            s_flag_lock <= '1';
+                        else
+                            s_flag_lock <= '0';
+                        end if;
+                        
+                    when others => s_flag_lock <= '0';
+                    
+                end case;
+                
+            end if;
+            
+            
+            if( s_sync_det_phase(2) = '1' )then
+                if( s_flag_lock = '0' )then
+                    if( s_stat_arr(0) = b"0001" ) then
+                        s_sync_det_cnt <= b"00001111";
+                    else
+                        s_sync_det_cnt <= b"00111111";
+                    end if;
+                else
+                    
+                    case s_stat_lock is
+                        when b"0001" =>
+                            if( s_stat_arr(0) = b"0010" ) then
+                                s_sync_det_cnt <= b"00111111";
+                            elsif( s_stat_arr(0) = b"0001" ) then
+                                s_sync_det_cnt <= b"00001111";
+                            elsif( s_stat_arr(0) = b"1000" ) then
+                                s_sync_det_cnt <= b"00001111";
+                            end if;
+                            
+                        when b"0010" =>
+                            if( s_stat_arr(0) = b"0100" ) then
+                                s_sync_det_cnt <= b"00111111";
+                            elsif( s_stat_arr(0) = b"0010" ) then
+                                s_sync_det_cnt <= b"00111111";
+                            elsif( s_stat_arr(0) = b"0001" ) then
+                                s_sync_det_cnt <= b"00111111";
+                            end if;
+                            
+                        when b"0100" =>
+                            if( s_stat_arr(0) = b"1000" ) then
+                                s_sync_det_cnt <= b"00111111";
+                            elsif( s_stat_arr(0) = b"0100" ) then
+                                s_sync_det_cnt <= b"00111111";
+                            elsif( s_stat_arr(0) = b"0010" ) then
+                                s_sync_det_cnt <= b"00111111";
+                            end if;
+                            
+                        when b"1000" =>
+                            if( s_stat_arr(0) = b"0001" ) then
+                                s_sync_det_cnt <= b"00001111";
+                            elsif( s_stat_arr(0) = b"1000" ) then
+                                s_sync_det_cnt <= b"00111111";
+                            elsif( s_stat_arr(0) = b"0100" ) then
+                                s_sync_det_cnt <= b"00111111";
+                            end if;
+                        
+                        when others => s_sync_det_cnt <= b"00111111";
+                        
+                    end case;
+                    
+                    
+                end if;
+                
+            else
+                s_sync_det_cnt <= s_sync_det_cnt(6 downto 0) & '0';
+            end if;
+            
+            -- if( s_sync_det_phase(2) = '1' )then
+                -- s_sync_det_cnt <= b"00001111";
+            -- else
+                -- s_sync_det_cnt <= s_sync_det_cnt(6 downto 0) & '0';
+            -- end if;
+            
+            s_sync_det_stb <= s_sync_det_cnt(7);
+            
+        end if;
+    end process;
+    
+    
 --==========================================================================
 -- OUTPUT
 --==========================================================================   
@@ -200,5 +361,6 @@ begin
 --=============================================
     osync <= s_osync;
     flag_freq_sh <= s_flag_freq_sh;
+    
     
 END beh;

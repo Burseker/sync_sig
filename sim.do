@@ -7,4 +7,4 @@ do wave.do
 view structure
 view signals
 
-run 3 us
+run 25 us
