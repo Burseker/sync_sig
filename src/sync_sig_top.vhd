@@ -44,6 +44,7 @@ architecture beh of sync_sig_top is
     
     signal osync            : std_logic := '0';
     signal s_flag_freq_sh   : std_logic := '0';
+    signal s_flag_lock      : std_logic := '0';
     
 --=============================================
 -- OTHERS
@@ -110,7 +111,9 @@ begin
         
         -- флаги состояния
         -- флаг ухода частоты
-        flag_freq_sh => s_flag_freq_sh
+        -- flag_freq_sh => s_flag_freq_sh,
+        -- флаг привязки входного сигнала к фронту частоты
+        flag_lock    => s_flag_lock
     );
     
     

@@ -1,6 +1,6 @@
 --================================================================================
 -- Description: sync_handler.
--- Version:     0.0.0
+-- Version:     0.1.0
 -- Developer:   SVB
 -- Workgroup:   IRS16
 --================================================================================
@@ -12,25 +12,21 @@
 --               
 -- Version History:   
 -- Ver 0.0.0  - Initial version
+-- Ver 0.1.0  - Рабочая версия. Сигнал osync появляется через 5 тактов после 
+--            ассоциированного с ним строба.
 --
 --
 --
 --
 -- Additional Comments:         
 -- 
--- Возможные состояния захвата, регистр s_sync_stat
--- 0b00 - захват по f и r clk2x в положительный полупериод clk1x
--- 0b01 - захват по f и r clk2x в отрицательной полупериод clk1x
--- 0b10 - захват по r clk2x в отрицательной полупериод clk1x
--- 0b11 - захват по r clk2x в положительный полупериод clk1x
+-- Возможные состояния захвата, регистр s_stat_arr(0), далее значение сохраняется
+-- линии задержки
+-- 0b0001 - захват в первой четверти clk
+-- 0b1000 - захват во второй четверти clk
+-- 0b0100 - захват в третьей четверти clk
+-- 0b0010 - захват в четвертой четверти clk
 -- 
--- стоит уточнить что индекс состояния условный, можно было выбрать 
--- другие последовательности. Такой выбор индекса обусловлен удобством 
--- соотношения двух соседних индексов
---      Если у статуса изменился старший разряд, при сохранении младшего, это обозначает
---   уход строба синхронизации на четверть периода clk1x
---      Так анализируется более продолжительный уход, это подсчет статусов смежных семи
---   периодов, а так же простейшая статистика.
 --
 -- 
 ----------------------------------------------------------------------------------
@@ -57,7 +53,7 @@ use ieee.numeric_std.all;
 
 --=== common lib ===
 -- use work.qpkt_pkg.all;
-use work.pkg_func.all;
+-- use work.pkg_func.all;
 -- use work.qpkt_imit_pkg.all;
 
 entity sync_handler is
@@ -78,29 +74,29 @@ entity sync_handler is
         
         -- флаги состояния
         -- флаг ухода частоты
-        flag_freq_sh: out std_logic
+        -- flag_freq_sh: out std_logic;
+        -- флаг привязки входного сигнала к фронту частоты
+        flag_lock   : out std_logic
     );
 end sync_handler;
 
 architecture beh of sync_handler is
 
     -- восстанавливаемый сигнал
-    signal  s_sync0_stb     : std_logic := '0';
-    signal  s_sync0_cnt     : unsigned( 3 downto 0 ) := ( others => '0' );
-    signal  sync            : std_logic := '0';
-    
     signal  s_osync         : std_logic := '0';
     signal  s_flag_freq_sh  : std_logic := '0';
+    signal  s_flag_lock_clk1x : std_logic := '0';
     
+    -- сигналы для восстановления соотношения частот clk и clk2x
     signal  s_fscale        : std_logic := '0';
     signal  s_ttrig_s       : std_logic := '0';
     signal  s_ttrig_s_r     : std_logic := '0';
 
+    -- линия задержки стадии 0
     signal  s_dl_st0        : std_logic_vector(7 downto 0) := ( others => '0' );
     signal  s_dl_fs0        : std_logic_vector(0 downto 0) := ( others => '0' );
     
-    signal  s_sync_stat     : std_logic_vector(1 downto 0) := ( others => '0' );
-    
+    -- сигналы обработки стадии 1
     type T_STAT_ARR7 is array (0 to 6) of std_logic_vector(3 downto 0);
     signal  s_stat_arr : T_STAT_ARR7 := ( others => ( others => '0' ) );
     signal  s_stat_lock: std_logic_vector(3 downto 0) := ( others => '0' );
@@ -111,6 +107,7 @@ architecture beh of sync_handler is
     signal  s_stC_pres      : std_logic := '0';
     signal  s_stD_pres      : std_logic := '0';
     
+    -- сигналы обработки стадии 2
     signal  s_sync_det_phase: std_logic_vector(2 downto 0) := ( others => '0' );
     signal  s_sync_det_cnt  : std_logic_vector(7 downto 0) := ( others => '0' );
     signal  s_sync_det_stb  : std_logic := '0';
@@ -174,14 +171,11 @@ begin
     process(aclr, clk2x)
     begin
         if(aclr = '1')then
-            s_sync_stat    <= ( others => '0' );
             s_stat_arr     <= ( others => ( others => '0' ) );
-            
             s_sync_det_phase <= ( others => '0' );
             
         elsif(rising_edge(clk2x))then
             if( s_dl_st0(1 downto 0) = b"11" and s_dl_st0(4 downto 3) = b"00" )then
-                s_sync_stat   <= s_dl_fs0(0) & s_dl_st0(2);
                 
                 case std_logic_vector'(s_dl_fs0(0) & s_dl_st0(2)) is      
                     when b"00" => s_stat_arr(0) <= b"0001";
@@ -274,13 +268,18 @@ begin
             end if;
             
             
+            -- обработка с учетом состояния s_stat_lock
             if( s_sync_det_phase(2) = '1' )then
                 if( s_flag_lock = '0' )then
-                    if( s_stat_arr(0) = b"0001" ) then
-                        s_sync_det_cnt <= b"00001111";
-                    else
-                        s_sync_det_cnt <= b"00111111";
-                    end if;
+                    case s_stat_arr(0) is
+                        when b"0001" => s_sync_det_cnt <= b"00111111";
+                        when b"0010" => s_sync_det_cnt <= b"00111111";
+                        when b"0100" => s_sync_det_cnt <= b"00011111";
+                        when b"1000" => s_sync_det_cnt <= b"00011111";
+                        
+                        when others  => s_sync_det_cnt <= b"00111111";
+                    end case;
+                    
                 else
                     
                     case s_stat_lock is
@@ -288,14 +287,14 @@ begin
                             if( s_stat_arr(0) = b"0010" ) then
                                 s_sync_det_cnt <= b"00111111";
                             elsif( s_stat_arr(0) = b"0001" ) then
-                                s_sync_det_cnt <= b"00001111";
+                                s_sync_det_cnt <= b"00111111";
                             elsif( s_stat_arr(0) = b"1000" ) then
-                                s_sync_det_cnt <= b"00001111";
+                                s_sync_det_cnt <= b"01111111";
                             end if;
                             
                         when b"0010" =>
                             if( s_stat_arr(0) = b"0100" ) then
-                                s_sync_det_cnt <= b"00111111";
+                                s_sync_det_cnt <= b"00011111";
                             elsif( s_stat_arr(0) = b"0010" ) then
                                 s_sync_det_cnt <= b"00111111";
                             elsif( s_stat_arr(0) = b"0001" ) then
@@ -304,9 +303,9 @@ begin
                             
                         when b"0100" =>
                             if( s_stat_arr(0) = b"1000" ) then
-                                s_sync_det_cnt <= b"00111111";
+                                s_sync_det_cnt <= b"00011111";
                             elsif( s_stat_arr(0) = b"0100" ) then
-                                s_sync_det_cnt <= b"00111111";
+                                s_sync_det_cnt <= b"00011111";
                             elsif( s_stat_arr(0) = b"0010" ) then
                                 s_sync_det_cnt <= b"00111111";
                             end if;
@@ -317,13 +316,12 @@ begin
                             elsif( s_stat_arr(0) = b"1000" ) then
                                 s_sync_det_cnt <= b"00111111";
                             elsif( s_stat_arr(0) = b"0100" ) then
-                                s_sync_det_cnt <= b"00111111";
+                                s_sync_det_cnt <= b"00011111";
                             end if;
                         
                         when others => s_sync_det_cnt <= b"00111111";
                         
                     end case;
-                    
                     
                 end if;
                 
@@ -331,13 +329,31 @@ begin
                 s_sync_det_cnt <= s_sync_det_cnt(6 downto 0) & '0';
             end if;
             
+            s_sync_det_stb <= s_sync_det_cnt(7);
+            
+            --=======================================================
+            -- тестовый блок, калибровка базовых задержек
             -- if( s_sync_det_phase(2) = '1' )then
-                -- s_sync_det_cnt <= b"00001111";
+                -- case s_stat_arr(0) is
+                    -- when b"0001" =>
+                        -- s_sync_det_cnt <= b"00111111";
+                        
+                    -- when b"0010" =>
+                        -- s_sync_det_cnt <= b"00111111";
+                        
+                    -- when b"0100" =>
+                        -- s_sync_det_cnt <= b"00011111";
+                        
+                    -- when b"1000" =>
+                        -- s_sync_det_cnt <= b"00011111";
+                    
+                    -- when others => s_sync_det_cnt <= b"00111111";
+                    
+                -- end case;
             -- else
                 -- s_sync_det_cnt <= s_sync_det_cnt(6 downto 0) & '0';
             -- end if;
-            
-            s_sync_det_stb <= s_sync_det_cnt(7);
+            --=======================================================
             
         end if;
     end process;
@@ -350,8 +366,10 @@ begin
     begin
         if (aclr = '1') then
             s_osync <= '0';
+            s_flag_lock_clk1x <= '0';
         elsif(rising_edge(clk)) then
             s_osync <= s_sync_det_stb;
+            s_flag_lock_clk1x <= s_flag_lock;
         end if;
     end process;
     
@@ -360,7 +378,7 @@ begin
 -- OUTPUT ASSIGMENTS
 --=============================================
     osync <= s_osync;
-    flag_freq_sh <= s_flag_freq_sh;
-    
+    --flag_freq_sh <= s_flag_freq_sh;
+    flag_lock <= s_flag_lock_clk1x;
     
 END beh;

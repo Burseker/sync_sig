@@ -58,6 +58,8 @@ architecture beh of sync_sig_tb is
     
     -- служебные сигналы
     signal  aclr        : std_logic := '1';
+    signal  test_rst    : std_logic := '1';
+    signal  aclr_uut    : std_logic := '1';
     signal  clk         : std_logic := '1';
     signal  clka        : std_logic := '1';
     signal  clkb        : std_logic := '1';
@@ -84,7 +86,7 @@ begin
     --=============================================
     -- СИГНАЛЫ СИНХРОНИЗАЦИИ ДЛЯ ИМИТАТОРА ШИНЫ АЦП
     --=============================================    
-    aclr <= '0' after 10*C_CLK_PERIOD;
+    aclr  <= '0' after 10*C_CLK_PERIOD;
     
     clk <= not clk after C_CLK_PERIOD/2;
     
@@ -132,10 +134,13 @@ begin
     --=============================================
     --=============================================
     --XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    test_rst <= '1' when real_time > x"0000_0B10" and real_time < x"0000_0B1F" else '0';
+    aclr_uut <= aclr or test_rst;
+    
     sync_sig_uut: entity work.sync_sig_top
     generic map( SIM => 0 )
     port map(
-        aclr    => aclr,
+        aclr    => aclr_uut,
         clk     => clk,
         clka    => clka,
         clkb    => clkb,
